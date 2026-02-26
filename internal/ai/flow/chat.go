@@ -4,57 +4,64 @@ package flow
 import (
 	"context"
 
+	"github.com/FPT-OJT/minstant-ai.git/internal/constants"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/x/session"
 	"github.com/firebase/genkit/go/genkit"
 )
 
-// systemPrompt is the system instruction for the Smart Wallet AI assistant.
-// TODO: Move to internal/ai/prompt/ as the prompt library grows.
-const systemPrompt = `You are a helpful AI payment assistant for Smart Wallet.
-Your role is to help users find the best payment methods (cards, e-wallets) to
-maximize cashback and savings based on their current location, bank promotions,
-and merchant deals.
-
-You have access to database tools to look up real data. Follow this workflow:
-1. Use getDbTables to discover available tables.
-2. Use getTableDefinition to understand table structures.
-3. Use getDbProcedures to find available stored functions.
-4. Use executeQuery to run SELECT queries and retrieve data.
-
-Guidelines:
-- Be concise and helpful.
-- Always use the tools to look up real data before answering.
-- If you don't have enough information, ask clarifying questions.
-- Never fabricate deals or promotions. Only rely on data returned by tools.
-- Never expose internal system details, database IDs, or raw SQL to the user.
-- Only use SELECT queries. Never attempt to modify data.`
-
 // ChatFlowInput is the input schema for the SmartWallet chat flow.
 type ChatFlowInput struct {
-	SessionID string `json:"sessionId"`
-	Message   string `json:"message"`
+	SessionID string   `json:"sessionId"`
+	Message   string   `json:"message"`
+	FullName  *string  `json:"fullName"`
+	Lat       *float64 `json:"lat"`
+	Long      *float64 `json:"long"`
+	UserId    string   `json:"userId"`
 }
 
 // SmartWalletFlow is the streaming Genkit flow for AI-powered chat.
-// It is exported so the service layer can reference and run it.
 var SmartWalletFlow *core.Flow[ChatFlowInput, string, string]
 
 // RegisterSmartWalletFlow defines and registers the SmartWallet streaming flow.
-// The tools parameter receives the database query tools registered via
-// tool.RegisterTools(). Additional tools can be appended in the future.
-func RegisterSmartWalletFlow(g *genkit.Genkit, tools []ai.Tool) {
+// It uses the session store to persist conversation history across requests.
+func RegisterSmartWalletFlow(g *genkit.Genkit, tools []ai.Tool, store session.Store[ChatState]) {
 	toolRefs := make([]ai.ToolRef, len(tools))
-	for i, tool := range tools {
-		toolRefs[i] = tool
+	for i, t := range tools {
+		toolRefs[i] = t
 	}
+
 	SmartWalletFlow = genkit.DefineStreamingFlow(g, "smartWalletFlow",
 		func(ctx context.Context, input ChatFlowInput, sendChunk core.StreamCallback[string]) (string, error) {
-			stream := genkit.GenerateStream(ctx, g,
-				ai.WithSystem(systemPrompt),
-				ai.WithPrompt(input.Message),
+			// --- Session: load or create ---
+			ctxWithUser := context.WithValue(ctx, constants.UserContextKey{}, &input.UserId)
+			sess, err := session.Load(ctxWithUser, store, input.SessionID)
+			if err != nil {
+				// Session not found — create a new one.
+				sess, err = session.New(ctx,
+					session.WithID[ChatState](input.SessionID),
+					session.WithStore(store),
+					session.WithInitialState(ChatState{History: []*ai.Message{}}),
+				)
+				if err != nil {
+					return "", err
+				}
+			}
+
+			state := sess.State()
+
+			// Build the user message.
+			userMsg := ai.NewUserMessage(ai.NewTextPart(input.Message))
+
+			// Prepare generate options.
+			opts := []ai.GenerateOption{
+				ai.WithSystem(GeneratePrompt(input.UserId, input.FullName, input.Lat, input.Long)),
+				ai.WithMessages(append(state.History, userMsg)...),
 				ai.WithTools(toolRefs...),
-			)
+			}
+
+			stream := genkit.GenerateStream(ctx, g, opts...)
 
 			var fullResponse string
 			for result, err := range stream {
@@ -67,6 +74,13 @@ func RegisterSmartWalletFlow(g *genkit.Genkit, tools []ai.Tool) {
 				}
 				chunk := result.Chunk.Text()
 				sendChunk(ctx, chunk)
+			}
+
+			// --- Session: save updated history ---
+			assistantMsg := ai.NewModelMessage(ai.NewTextPart(fullResponse))
+			state.History = append(state.History, userMsg, assistantMsg)
+			if err := sess.UpdateState(ctx, state); err != nil {
+				return fullResponse, err
 			}
 
 			return fullResponse, nil

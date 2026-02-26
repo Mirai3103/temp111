@@ -3,6 +3,7 @@ package router
 
 import (
 	"github.com/FPT-OJT/minstant-ai.git/internal/handler"
+	"github.com/FPT-OJT/minstant-ai.git/internal/middleware"
 	"github.com/FPT-OJT/minstant-ai.git/internal/service"
 	"github.com/go-chi/chi/v5"
 )
@@ -15,6 +16,8 @@ func Setup(r *chi.Mux, chatService service.ChatService) {
 	chatHandler := handler.NewChatHandler(chatService)
 
 	// Routes
-	r.Get("/", handler.HelloWorld)
-	r.Post("/api/chat", chatHandler.HandleChat)
+	aiRoute := chi.NewRouter()
+	aiRoute.Use(middleware.RequireAuth())
+	aiRoute.Post("/chat", chatHandler.HandleChat)
+	r.Mount("/api/ai", aiRoute)
 }

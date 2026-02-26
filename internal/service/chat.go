@@ -7,17 +7,26 @@ import (
 	"github.com/FPT-OJT/minstant-ai.git/internal/ai/flow"
 )
 
+type ChatInput struct {
+	ChatInput string   `json:"chatInput"`
+	SessionID string   `json:"sessionId"`
+	FullName  *string  `json:"fullName"`
+	Lat       *float64 `json:"lat"`
+	Long      *float64 `json:"long"`
+	UserId    string   `json:"userId"`
+}
+
 type ChatService interface {
-	GenerateResponse(ctx context.Context, sessionID, message string) (<-chan string, <-chan error)
+	GenerateResponse(ctx context.Context, input ChatInput) (<-chan string, <-chan error)
 }
 
 type GenkitChatService struct{}
 
-func NewGenkitChatService() *GenkitChatService {
+func NewGenkitChatService() ChatService {
 	return &GenkitChatService{}
 }
 
-func (s *GenkitChatService) GenerateResponse(ctx context.Context, sessionID, message string) (<-chan string, <-chan error) {
+func (s *GenkitChatService) GenerateResponse(ctx context.Context, input ChatInput) (<-chan string, <-chan error) {
 	chunks := make(chan string)
 	errCh := make(chan error, 1)
 
@@ -26,8 +35,12 @@ func (s *GenkitChatService) GenerateResponse(ctx context.Context, sessionID, mes
 		defer close(errCh)
 
 		input := flow.ChatFlowInput{
-			SessionID: sessionID,
-			Message:   message,
+			SessionID: input.SessionID,
+			Message:   input.ChatInput,
+			FullName:  input.FullName,
+			Lat:       input.Lat,
+			Long:      input.Long,
+			UserId:    input.UserId,
 		}
 
 		for val, err := range flow.SmartWalletFlow.Stream(ctx, input) {

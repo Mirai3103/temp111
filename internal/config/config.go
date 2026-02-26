@@ -7,7 +7,9 @@ import "os"
 type Config struct {
 	Port             string
 	QueryDatabaseURL string
+	ChatDatabaseURL  string
 	AI               AIConfig
+	PublicKeyPath    string
 }
 
 // AIConfig holds AI/LLM-related configuration.
@@ -39,14 +41,20 @@ func Load() *Config {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
+	publicKeyPath := os.Getenv("PUBLIC_KEY_PATH")
+	if publicKeyPath == "" {
+		publicKeyPath = "./public_key.pem"
+	}
 
 	return &Config{
 		Port:             port,
 		QueryDatabaseURL: os.Getenv("QUERY_DATABASE_URL"),
+		ChatDatabaseURL:  os.Getenv("CHAT_DATABASE_URL"),
 		AI: AIConfig{
 			APIKey:  os.Getenv("OPENAI_API_KEY"),
 			BaseURL: baseURL,
 			Model:   model,
 		},
+		PublicKeyPath: publicKeyPath,
 	}
 }

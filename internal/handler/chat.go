@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/FPT-OJT/minstant-ai.git/internal/middleware"
 	"github.com/FPT-OJT/minstant-ai.git/internal/service"
 )
 
 // ChatRequest is the expected JSON body for the chat endpoint.
 type ChatRequest struct {
-	Message   string `json:"message"`
-	SessionID string `json:"sessionId"`
+	ChatInput string   `json:"chatInput"`
+	SessionID string   `json:"sessionId"`
+	FullName  *string  `json:"fullName"`
+	Lat       *float64 `json:"lat"`
+	Long      *float64 `json:"long"`
 }
 
 // ChatHandler handles chat-related HTTP requests.
@@ -38,7 +42,7 @@ func (h *ChatHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Message == "" {
+	if req.ChatInput == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{
@@ -61,8 +65,17 @@ func (h *ChatHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
+	userId := middleware.ExtractUserID(r)
+	chatInput := service.ChatInput{
+		ChatInput: req.ChatInput,
+		SessionID: req.SessionID,
+		FullName:  req.FullName,
+		Lat:       req.Lat,
+		Long:      req.Long,
+		UserId:    *userId,
+	}
 
-	chunks, errCh := h.chatService.GenerateResponse(r.Context(), req.SessionID, req.Message)
+	chunks, errCh := h.chatService.GenerateResponse(r.Context(), chatInput)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {

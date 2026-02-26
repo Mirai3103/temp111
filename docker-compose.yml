@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - QUERY_DATABASE_URL=${QUERY_DATABASE_URL}
+      - CHAT_DATABASE_URL=postgres://postgres:fpt-ojtpwd@chat-database:5432/minstant?sslmode=disable
+      # Pass through AI configuration from local environment
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - AI_MODEL=${AI_MODEL:-gpt-4o-mini}
+    networks:
+      - ai-network
+    depends_on:
+      chat-database:
+        condition: service_started
+
+  chat-database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: fpt-ojtpwd
+      POSTGRES_DB: minstant
+    ports:
+      - "5432:5432"
+    volumes:
+      - chat_db_data:/var/lib/postgresql/data
+    networks:
+      - ai-network
+
+volumes:
+  chat_db_data:
+networks:
+  ai-network:
+    driver: bridge
