@@ -1,9 +1,9 @@
-// Package main is the entry point for the minstant-ai server.
 package main
 
 import (
 	"context"
 	"log"
+	"net/http"
 
 	appai "github.com/FPT-OJT/minstant-ai.git/internal/ai"
 	"github.com/FPT-OJT/minstant-ai.git/internal/ai/flow"
@@ -12,9 +12,10 @@ import (
 	"github.com/FPT-OJT/minstant-ai.git/internal/repository"
 	"github.com/FPT-OJT/minstant-ai.git/internal/router"
 	"github.com/FPT-OJT/minstant-ai.git/internal/service"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 )
 
 func main() {
@@ -43,19 +44,27 @@ func main() {
 	// Choose the ChatService implementation.
 	var chatSvc service.ChatService = service.NewGenkitChatService()
 
-	// ---------- Echo server ----------
-	e := echo.New()
+	// ---------- Chi server ----------
+	r := chi.NewRouter()
 
 	// Global middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	// Register routes
-	router.Setup(e, chatSvc)
+	router.Setup(r, chatSvc)
 
 	// Start server
 	log.Printf("Starting server on :%s", cfg.Port)
-	if err := e.Start(":" + cfg.Port); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
 }

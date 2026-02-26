@@ -2,9 +2,8 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
-
-	"github.com/labstack/echo/v4"
 )
 
 // HealthResponse is the JSON response body for the health-check endpoint.
@@ -13,8 +12,10 @@ type HealthResponse struct {
 }
 
 // HelloWorld handles GET / and returns a simple health-check JSON response.
-func HelloWorld(c echo.Context) error {
-	return c.JSON(http.StatusOK, HealthResponse{
+func HelloWorld(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(HealthResponse{
 		Message: "Hello, World!",
 	})
 }

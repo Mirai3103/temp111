@@ -1,11 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/FPT-OJT/minstant-ai.git/internal/service"
-	"github.com/labstack/echo/v4"
 )
 
 // ChatRequest is the expected JSON body for the chat endpoint.
@@ -27,43 +27,52 @@ func NewChatHandler(cs service.ChatService) *ChatHandler {
 // HandleChat processes POST /api/chat. It validates the request, calls the
 // ChatService to generate a streaming response, and writes each chunk back
 // to the client as a Server-Sent Event.
-func (h *ChatHandler) HandleChat(c echo.Context) error {
+func (h *ChatHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 	var req ChatRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, map[string]string{
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
 			"error": "invalid request body",
 		})
+		return
 	}
 
 	if req.Message == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
 			"error": "message is required",
 		})
+		return
 	}
 
 	if req.SessionID == "" {
-		return c.JSON(http.StatusBadRequest, map[string]string{
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
 			"error": "sessionId is required",
 		})
+		return
 	}
 
 	// Set SSE headers.
-	w := c.Response()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.WriteHeader(http.StatusOK)
 
-	chunks, errCh := h.chatService.GenerateResponse(c.Request().Context(), req.SessionID, req.Message)
+	chunks, errCh := h.chatService.GenerateResponse(r.Context(), req.SessionID, req.Message)
 
-	flusher, ok := w.Writer.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
 	if !ok {
-		return fmt.Errorf("streaming not supported")
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
 	}
 
 	for chunk := range chunks {
 		if _, err := fmt.Fprintf(w, "data: %s\n\n", chunk); err != nil {
-			return err
+			return
 		}
 		flusher.Flush()
 	}
@@ -72,12 +81,10 @@ func (h *ChatHandler) HandleChat(c echo.Context) error {
 	if err := <-errCh; err != nil {
 		fmt.Fprintf(w, "data: [ERROR] %s\n\n", err.Error())
 		flusher.Flush()
-		return nil
+		return
 	}
 
 	// Signal completion.
 	fmt.Fprintf(w, "data: [DONE]\n\n")
 	flusher.Flush()
-
-	return nil
 }
