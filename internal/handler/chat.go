@@ -72,7 +72,7 @@ func (h *ChatHandler) HandleChat(w http.ResponseWriter, r *http.Request) {
 		FullName:  req.FullName,
 		Lat:       req.Lat,
 		Long:      req.Long,
-		UserId:    *userId,
+		UserId:    userId,
 	}
 
 	chunks, errCh := h.chatService.GenerateResponse(r.Context(), chatInput)

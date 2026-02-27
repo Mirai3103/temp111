@@ -91,6 +91,6 @@ func RequireAuth() func(http.Handler) http.Handler {
 	}
 }
 
-func ExtractUserID(r *http.Request) *string {
-	return r.Context().Value(constants.UserContextKey{}).(*string)
+func ExtractUserID(r *http.Request) string {
+	return r.Context().Value(constants.UserContextKey{}).(string)
 }

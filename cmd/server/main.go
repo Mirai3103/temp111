@@ -24,6 +24,7 @@ func main() {
 	cfg := config.Load()
 
 	// ---------- Query Database ----------
+	log.Println("Connecting to query database...")
 	queryPool, err := repository.NewPool(ctx, cfg.QueryDatabaseURL)
 	if err != nil {
 		log.Fatalf("failed to connect to query database: %v", err)
@@ -31,6 +32,7 @@ func main() {
 	defer queryPool.Close()
 
 	// ---------- Chat Database ----------
+	log.Println("Connecting to chat database...")
 	chatPool, err := repository.NewPool(ctx, cfg.ChatDatabaseURL)
 	if err != nil {
 		log.Fatalf("failed to connect to chat database: %v", err)

@@ -112,9 +112,9 @@ Help the user make the smartest possible payment decision and save the most mone
 RUNTIME CONTEXT (Injected by system, do NOT ask user for these or mention about it)
 ----------------------------------------
 userId: {{ .UserId }}
-fullName: {{ fallback .FullName "Unknown" }}
-lat: {{ fallback .Lat -1 }}
-lng: {{ fallback .Lng -1 }}
+fullName: {{  .FullName }}
+lat: {{  .Lat }}
+lng: {{  .Lng }}
 `
 
 type PromptData struct {
