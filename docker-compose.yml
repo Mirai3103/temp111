@@ -13,11 +13,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
       - AI_MODEL=${AI_MODEL:-gpt-4o-mini}
-      - PUBLIC_KEY_PATH=${PUBLIC_KEY_PATH:-./public_key.pem}
+      - PUBLIC_KEY=${PUBLIC_KEY:-}
     networks:
       - ai-network
-    volumes:
-      - ./public_key.pem:/app/public_key.pem
     depends_on:
       chat-database:
         condition: service_started

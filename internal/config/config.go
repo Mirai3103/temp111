@@ -9,7 +9,7 @@ type Config struct {
 	QueryDatabaseURL string
 	ChatDatabaseURL  string
 	AI               AIConfig
-	PublicKeyPath    string
+	PublicKey    string
 }
 
 // AIConfig holds AI/LLM-related configuration.
@@ -22,6 +22,7 @@ type AIConfig struct {
 	// Model is the model identifier in "provider/model" format
 	// (e.g. "openai-compat/gpt-4o-mini").
 	Model string
+
 }
 
 // Load reads configuration from environment variables and returns a Config.
@@ -41,10 +42,8 @@ func Load() *Config {
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
-	publicKeyPath := os.Getenv("PUBLIC_KEY_PATH")
-	if publicKeyPath == "" {
-		publicKeyPath = "./public_key.pem"
-	}
+
+	publicKey := os.Getenv("PUBLIC_KEY")
 
 	return &Config{
 		Port:             port,
@@ -55,6 +54,6 @@ func Load() *Config {
 			BaseURL: baseURL,
 			Model:   model,
 		},
-		PublicKeyPath: publicKeyPath,
+		PublicKey: publicKey,
 	}
 }

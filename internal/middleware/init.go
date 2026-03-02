@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"crypto/rsa"
-	"os"
 
 	"github.com/FPT-OJT/minstant-ai.git/internal/config"
 	"github.com/go-chi/chi/v5"
@@ -12,7 +11,7 @@ import (
 )
 
 func SetupMiddleware(r *chi.Mux, cfg *config.Config) error {
-	pubKey, err := loadPublicKey(cfg.PublicKeyPath)
+	pubKey, err := loadPublicKey(cfg.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -33,10 +32,7 @@ func SetupMiddleware(r *chi.Mux, cfg *config.Config) error {
 	return nil
 }
 
-func loadPublicKey(path string) (*rsa.PublicKey, error) {
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return jwt.ParseRSAPublicKeyFromPEM(bytes)
+func loadPublicKey(rawKey string) (*rsa.PublicKey, error) {
+
+	return jwt.ParseRSAPublicKeyFromPEM([]byte(rawKey))
 }
