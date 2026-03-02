@@ -33,6 +33,9 @@ func SetupMiddleware(r *chi.Mux, cfg *config.Config) error {
 }
 
 func loadPublicKey(rawKey string) (*rsa.PublicKey, error) {
+	pemKey := "-----BEGIN PUBLIC KEY-----\n" +
+		rawKey +
+		"\n-----END PUBLIC KEY-----"
 
-	return jwt.ParseRSAPublicKeyFromPEM([]byte(rawKey))
+	return jwt.ParseRSAPublicKeyFromPEM([]byte(pemKey))
 }
