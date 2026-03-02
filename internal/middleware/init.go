@@ -2,12 +2,14 @@ package middleware
 
 import (
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/base64"
+	"errors"
 
 	"github.com/FPT-OJT/minstant-ai.git/internal/config"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 func SetupMiddleware(r *chi.Mux, cfg *config.Config) error {
@@ -33,9 +35,20 @@ func SetupMiddleware(r *chi.Mux, cfg *config.Config) error {
 }
 
 func loadPublicKey(rawKey string) (*rsa.PublicKey, error) {
-	pemKey := "-----BEGIN PUBLIC KEY-----\n" +
-		rawKey +
-		"\n-----END PUBLIC KEY-----"
+	derBytes, err := base64.StdEncoding.DecodeString(rawKey)
+	if err != nil {
+		return nil, err
+	}
 
-	return jwt.ParseRSAPublicKeyFromPEM([]byte(pemKey))
+	pub, err := x509.ParsePKIXPublicKey(derBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("not RSA public key")
+	}
+
+	return rsaPub, nil
 }
