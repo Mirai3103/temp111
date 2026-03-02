@@ -19,5 +19,5 @@ func Setup(r *chi.Mux, chatService service.ChatService) {
 	aiRoute := chi.NewRouter()
 	aiRoute.Use(middleware.RequireAuth())
 	aiRoute.Post("/chat", chatHandler.HandleChat)
-	r.Mount("/api/ai", aiRoute)
+	r.Mount("/", aiRoute)
 }
